@@ -8,7 +8,7 @@ A multi-tenant SaaS admin dashboard built for managing organizations, distinct o
 
 ## 🔑 Seed Test Credentials (Admin Access)
 - **Email:** `admin@nexushub.com`
-- **Password:** `AdminPass123!`
+- **Password:** `Admin@123`
 
 ---
 
