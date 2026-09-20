@@ -111,8 +111,6 @@ export const AuthPage: React.FC = () => {
             )}
           </button>
         </form>
-
-        {/* Toggle Mode */}
         <div className="mt-6 pt-6 border-t border-slate-800/80 text-center">
           <p className="text-xs text-slate-400">
             {isSignUp ? 'Already have an account?' : "Don't have an account yet?"}{' '}

@@ -36,11 +36,28 @@ serve(async (req) => {
       );
     }
 
-    const { email, role, organizationId } = await req.json();
+    const body = await req.json();
+    const email = body.email;
+    const role = body.role || 'member';
+    const organizationId = body.organizationId || body.organization_id;
 
     if (!email || !organizationId) {
       return new Response(
         JSON.stringify({ error: 'Email and organizationId are required' }),
+        { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: existingMember } = await supabaseAdmin
+      .from('organization_members')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingMember) {
+      return new Response(
+        JSON.stringify({ error: 'User is already invited or a member of this organization' }),
         { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
@@ -50,7 +67,7 @@ serve(async (req) => {
       .insert([
         {
           email,
-          role: role || 'member',
+          role,
           organization_id: organizationId,
           status: 'invited',
         },
