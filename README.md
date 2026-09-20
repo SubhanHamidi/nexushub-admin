@@ -1,32 +1,40 @@
-# React + TypeScript + Vite
+# NexusHub Admin Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A multi-tenant SaaS admin dashboard built for managing organizations, distinct organization types, member invitations via Supabase Edge Functions, and Row Level Security (RLS) enforcement.
 
-Currently, two official plugins are available:
+## 🚀 Live Demo URLs
+- **Production URL (main):** [https://nexushub-admin.vercel.app](https://nexushub-admin.vercel.app)
+- **Preview URL (development):** [https://nexushub-admin-git-development.vercel.app](https://nexushub-admin-git-development.vercel.app)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🔑 Seed Test Credentials (Admin Access)
+- **Email:** `admin@nexushub.com`
+- **Password:** `AdminPass123!`
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠 Tech Stack & Architecture
 
-## Expanding the Oxlint configuration
+- **Frontend Framework:** React 18 with TypeScript (Strict Mode)
+- **Build Tool:** Vite (SWC)
+- **Routing:** React Router v6 (Client-side with protected route guards)
+- **Styling:** Tailwind CSS + shadcn/ui components
+- **Server State & Caching:** TanStack React Query v5
+- **Forms & Validation:** React Hook Form + Zod validation schemas
+- **Backend Infrastructure:** Supabase (PostgreSQL with RLS Enabled)
+- **Serverless Edge Logic:** Supabase Edge Function (`invite-member` running on Deno)
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+---
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## 🔒 Security & Data Isolation
+- Every table (`organizations`, `organization_members`) has **Row Level Security (RLS)** strictly enabled.
+- Admins can only view and mutate their own tenant data.
+- Member invitations are handled securely via an Edge Function using the Supabase Service Role Key on the server side to prevent client tampering.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## 📦 Setup & Installation Instructions
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/SubhanHamidi/nexushub-admin.git](https://github.com/SubhanHamidi/nexushub-admin.git)
+   cd nexushub-admin
