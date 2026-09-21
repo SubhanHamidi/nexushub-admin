@@ -118,7 +118,7 @@ export const MembersModule: React.FC = () => {
     },
   });
 
-  // 4. Delete Member Mutation
+  // 4. Delete Member Mutation (With Optimistic Update & Instant UI Removal)
   const deleteMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
       const { error } = await supabase
@@ -128,11 +128,28 @@ export const MembersModule: React.FC = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members', currentOrg?.id] });
+    onMutate: async (memberId: string) => {
+      await queryClient.cancelQueries({ queryKey: ['members', currentOrg?.id] });
+      const previousMembers = queryClient.getQueryData<MemberRecord[]>(['members', currentOrg?.id]);
+
+      // Instantly remove member from local cache/UI
+      if (previousMembers) {
+        queryClient.setQueryData<MemberRecord[]>(
+          ['members', currentOrg?.id],
+          previousMembers.filter((m) => m.id !== memberId)
+        );
+      }
+
+      return { previousMembers };
     },
-    onError: (err: Error) => {
-      alert(err.message || 'Failed to remove member');
+    onError: (err: Error, _memberId, context) => {
+      if (context?.previousMembers) {
+        queryClient.setQueryData(['members', currentOrg?.id], context.previousMembers);
+      }
+      alert(err.message || 'Failed to remove member. Check Supabase RLS delete policies.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['members', currentOrg?.id] });
     },
   });
 
