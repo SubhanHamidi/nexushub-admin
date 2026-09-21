@@ -59,22 +59,41 @@ export const MembersModule: React.FC = () => {
     enabled: !!currentOrg?.id,
   });
 
-  // 2. Invite Member Mutation via Supabase Edge Function
+  // 2. Invite Member Mutation (Direct DB Fallback + Edge Function Support)
   const inviteMutation = useMutation({
     mutationFn: async (formData: InviteFormData) => {
       if (!currentOrg?.id) throw new Error('No active organization selected');
 
-      // Invoking Supabase Edge Function: 'invite-member'
-      const { data, error } = await supabase.functions.invoke('invite-member', {
+      // Primary Attempt: Direct database insertion
+      const { data: directData, error: directError } = await supabase
+        .from('organization_members')
+        .insert([
+          {
+            email: formData.email,
+            role: formData.role,
+            organization_id: currentOrg.id,
+            status: 'invited',
+          },
+        ])
+        .select();
+
+      if (!directError) return directData;
+
+      // Secondary Fallback Attempt: Edge Function
+      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('invite-member', {
         body: {
           email: formData.email,
           role: formData.role,
           organizationId: currentOrg.id,
+          organization_id: currentOrg.id,
         },
       });
 
-      if (error) throw new Error(error.message || 'Failed to send member invitation');
-      return data;
+      if (edgeError) {
+        throw new Error(directError?.message || edgeError?.message || 'Failed to send member invitation');
+      }
+
+      return edgeData;
     },
     onSuccess: () => {
       alert('Member invitation sent successfully!');
@@ -167,7 +186,7 @@ export const MembersModule: React.FC = () => {
                     <td className="px-4 py-3 capitalize text-slate-400">{m.role}</td>
                     <td className="px-4 py-3">
                       <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {m.status || 'Active'}
+                        {m.status || 'invited'}
                       </span>
                     </td>
                   </tr>
