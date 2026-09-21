@@ -3,7 +3,7 @@
 A multi-tenant SaaS admin dashboard built for managing organizations, distinct organization types, member invitations via Supabase Edge Functions, and Row Level Security (RLS) enforcement.
 
 ## 🚀 Live Demo URLs
-- **Production URL (main):** [https://nexushub-admin.vercel.app](https://nexushub-admin.vercel.app)
+- **Production URL (main):** [https://nexushub-admin.vercel.app] (https://nexushub-admin-roan.vercel.app/)
 - **Preview URL (development):** [https://nexushub-admin-git-development.vercel.app](https://nexushub-admin-git-development.vercel.app)
 
 ## 🔑 Seed Test Credentials (Admin Access)
