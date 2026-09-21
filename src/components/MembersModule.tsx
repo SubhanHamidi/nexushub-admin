@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { supabase } from '../lib/supabase';
 import { useOrg } from '../context/OrgContext';
 
-// Invite Form Zod Validation Schema
 const inviteSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   role: z.enum(['admin', 'member']),
@@ -29,7 +28,6 @@ export const MembersModule: React.FC = () => {
   const { currentOrg } = useOrg();
   const queryClient = useQueryClient();
 
-  // Form Setup with React Hook Form + Zod
   const {
     register,
     handleSubmit,
@@ -43,7 +41,7 @@ export const MembersModule: React.FC = () => {
     },
   });
 
-  // 1. Fetch Organization Members using React Query
+  // 1. Fetch Members
   const { data: members = [], isLoading, isError, error } = useQuery<MemberRecord[]>({
     queryKey: ['members', currentOrg?.id],
     queryFn: async () => {
@@ -59,12 +57,11 @@ export const MembersModule: React.FC = () => {
     enabled: !!currentOrg?.id,
   });
 
-  // 2. Invite Member Mutation (Direct DB Fallback + Edge Function Support)
+  // 2. Invite Member Mutation
   const inviteMutation = useMutation({
     mutationFn: async (formData: InviteFormData) => {
       if (!currentOrg?.id) throw new Error('No active organization selected');
 
-      // Primary Attempt: Direct database insertion
       const { data: directData, error: directError } = await supabase
         .from('organization_members')
         .insert([
@@ -79,7 +76,6 @@ export const MembersModule: React.FC = () => {
 
       if (!directError) return directData;
 
-      // Secondary Fallback Attempt: Edge Function
       const { data: edgeData, error: edgeError } = await supabase.functions.invoke('invite-member', {
         body: {
           email: formData.email,
@@ -96,12 +92,47 @@ export const MembersModule: React.FC = () => {
       return edgeData;
     },
     onSuccess: () => {
-      alert('Member invitation sent successfully!');
       reset();
       queryClient.invalidateQueries({ queryKey: ['members', currentOrg?.id] });
     },
     onError: (err: Error) => {
       alert(err.message || 'An error occurred while inviting the member');
+    },
+  });
+
+  // 3. Update Role Mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ memberId, newRole }: { memberId: string; newRole: string }) => {
+      const { error } = await supabase
+        .from('organization_members')
+        .update({ role: newRole })
+        .eq('id', memberId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members', currentOrg?.id] });
+    },
+    onError: (err: Error) => {
+      alert(err.message || 'Failed to update role');
+    },
+  });
+
+  // 4. Delete Member Mutation
+  const deleteMemberMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase
+        .from('organization_members')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members', currentOrg?.id] });
+    },
+    onError: (err: Error) => {
+      alert(err.message || 'Failed to remove member');
     },
   });
 
@@ -115,12 +146,12 @@ export const MembersModule: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-white">Team Members</h2>
           <p className="text-xs text-slate-400">
-            Manage team members and send invites for <span className="text-indigo-400 font-medium">{currentOrg?.name || 'Workspace'}</span>
+            Manage team members, roles, and access for <span className="text-indigo-400 font-medium">{currentOrg?.name || 'Workspace'}</span>
           </p>
         </div>
       </div>
 
-      {/* Invite Form with Zod Validation */}
+      {/* Invite Form */}
       <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
           <div className="flex-1 w-full">
@@ -175,22 +206,56 @@ export const MembersModule: React.FC = () => {
                   <th className="px-4 py-3">Member / Email</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {members.map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-800/30 transition">
-                    <td className="px-4 py-3 text-white font-medium">
-                      {m.profiles?.email || m.email || 'Invited User'}
-                    </td>
-                    <td className="px-4 py-3 capitalize text-slate-400">{m.role}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {m.status || 'invited'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {members.map((m) => {
+                  const isOwner = m.role?.toLowerCase() === 'owner';
+                  const isActive = isOwner || m.status?.toLowerCase() === 'active';
+
+                  return (
+                    <tr key={m.id} className="hover:bg-slate-800/30 transition">
+                      <td className="px-4 py-3 text-white font-medium">
+                        {m.profiles?.email || m.email || 'Invited User'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={m.role}
+                          onChange={(e) => updateRoleMutation.mutate({ memberId: m.id, newRole: e.target.value })}
+                          className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded px-2 py-1 focus:outline-none focus:border-indigo-500 capitalize"
+                        >
+                          <option value="member">Member</option>
+                          <option value="admin">Admin</option>
+                          <option value="owner">Owner</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2.5 py-1 text-[10px] font-semibold rounded-full border capitalize ${
+                            isActive
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}
+                        >
+                          {isOwner ? 'active' : m.status || 'invited'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => {
+                            if (confirm('Are you sure you want to remove this member?')) {
+                              deleteMemberMutation.mutate(m.id);
+                            }
+                          }}
+                          className="px-2.5 py-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded border border-red-500/20 transition"
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
